@@ -46,4 +46,18 @@ class OrderApplicationServiceMockTest {
         assertThrows(IllegalArgumentException.class, () -> service.payOrder(id));
         verify(repository, never()).save(any());
     }
+
+    @Test
+    void cancelledOrderIsNotSavedAgainWhenPaymentIsRejected() {
+        OrderRepository repository = mock(OrderRepository.class);
+        var service = new OrderApplicationService(repository);
+        Order order = Order.create(UUID.randomUUID(), List.of(new OrderItem(UUID.randomUUID(), 1, Money.vnd(100))));
+        order.cancel();
+        UUID id = order.getId();
+        when(repository.findById(id)).thenReturn(Optional.of(order));
+
+        assertThrows(IllegalStateException.class, () -> service.payOrder(id));
+        assertEquals(OrderStatus.CANCELLED, order.getStatus());
+        verify(repository, never()).save(any());
+    }
 }

@@ -45,4 +45,35 @@ class CreateOrderCommandTest {
             assertTrue(factory.getValidator().validate(command).isEmpty());
         }
     }
+
+    @Test
+    void validatesPricePrecisionAndDatabaseLimit() {
+        UUID product = UUID.randomUUID();
+        UUID customer = UUID.randomUUID();
+        var max = new CreateOrderCommand(customer, List.of(
+                new CreateOrderCommand.OrderItemCommand(product, 1, new BigDecimal("99999999999999999.99"))));
+        var overflow = new CreateOrderCommand(customer, List.of(
+                new CreateOrderCommand.OrderItemCommand(product, 1, new BigDecimal("100000000000000000.00"))));
+        var fractional = new CreateOrderCommand(customer, List.of(
+                new CreateOrderCommand.OrderItemCommand(product, 1, new BigDecimal("0.001"))));
+
+        try (var factory = Validation.buildDefaultValidatorFactory()) {
+            var validator = factory.getValidator();
+            assertTrue(validator.validate(max).isEmpty());
+            assertFalse(validator.validate(overflow).isEmpty());
+            assertFalse(validator.validate(fractional).isEmpty());
+        }
+    }
+
+    @Test
+    void rejectsMissingCustomerAndMissingItems() {
+        var item = new CreateOrderCommand.OrderItemCommand(UUID.randomUUID(), 1, BigDecimal.ONE);
+        var noCustomer = new CreateOrderCommand(null, List.of(item));
+        var noItems = new CreateOrderCommand(UUID.randomUUID(), null);
+        try (var factory = Validation.buildDefaultValidatorFactory()) {
+            var validator = factory.getValidator();
+            assertFalse(validator.validate(noCustomer).isEmpty());
+            assertFalse(validator.validate(noItems).isEmpty());
+        }
+    }
 }
